@@ -1,0 +1,89 @@
+mql5
+//+------------------------------------------------------------------+
+//| Expert advisor program for Swing Climber EurUsd H1              |
+//| Developer's site: forexroboteasy.com                            |
+//| Development: Forex Robot Easy Team                              |
+//+------------------------------------------------------------------+
+
+// Define input parameters
+input int TP = 100; // Take profit in pips
+input int SL = 50; // Stop loss in pips
+input double LotSize = 0.01; // Trading lot size
+input bool CustomExitTimes = false; // Enable customization of exit times
+input int ExitHour = 20; // Default exit hour
+
+// Define global variables
+int ticket = 0; // Order ticket
+bool tradeAllowed = true; // Flag to allow trade execution
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Set initial values
+    tradeAllowed = true;
+    
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Close any open trades before deinitialization
+    if (ticket > 0)
+    {
+        OrderClose(ticket, OrderLots(), MarketInfo(OrderSymbol(), MODE_BID), 3, clrRed);
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Expert start function                                            |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Check if trade is allowed
+    if (!tradeAllowed)
+    {
+        return;
+    }
+    
+    // Check if there is an open trade
+    if (ticket > 0)
+    {
+        // Check if the trade is closed
+        if (OrderSelect(ticket, SELECT_BY_TICKET))
+        {
+            if (OrderCloseTime() > 0)
+            {
+                // Reset trade variables
+                ticket = 0;
+                tradeAllowed = true;
+            }
+        }
+    }
+    else
+    {
+        // Calculate daily swing levels
+        double swingHigh = iHigh(NULL, PERIOD_H1, iHighest(NULL, PERIOD_H1, MODE_HIGH, 24, 1));
+        double swingLow = iLow(NULL, PERIOD_H1, iLowest(NULL, PERIOD_H1, MODE_LOW, 24, 1));
+        
+        // Check if price crossed above the swing high level
+        if (Close[1] < swingHigh && Close > swingHigh)
+        {
+            // Open a buy trade
+            ticket = OrderSend(OrderSymbol(), OP_BUY, LotSize, Ask, 3, Ask - SL * Point, Ask + TP * Point, 'Swing Climber EurUsd H1', MagicNumber, 0, clrGreen);
+            tradeAllowed = false;
+        }
+        // Check if price crossed below the swing low level
+        else if (Close[1] > swingLow && Close < swingLow)
+        {
+            // Open a sell trade
+            ticket = OrderSend(OrderSymbol(), OP_SELL, LotSize, Bid, 3, Bid + SL * Point, Bid - TP * Point, 'Swing Climber EurUsd H1', MagicNumber, 0, clrRed);
+            tradeAllowed = false;
+        }
+    }
+}
+
